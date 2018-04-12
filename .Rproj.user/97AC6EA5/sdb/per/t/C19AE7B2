@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1522690900232.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "C19AE7B2",
+    "lastKnownWriteTime" : 0,
+    "last_content_update" : 1522690900232,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "A5A8ED77",
+        "caption" : "count_shea_smallcontribs",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=count_shea_smallcontribs&cache_key=A5A8ED77",
+        "displayedObservations" : "1",
+        "environment" : "",
+        "object" : "count_shea_smallcontribs",
+        "preview" : "0",
+        "totalObservations" : "1",
+        "variables" : "2"
+    },
+    "relative_order" : 6,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

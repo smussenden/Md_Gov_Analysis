@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1522689354944.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "1225C9C1",
+    "lastKnownWriteTime" : 5764616297348304921,
+    "last_content_update" : 1522689354944,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "DEF87BE4",
+        "caption" : "vignarajah_state_list_fromzips",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=vignarajah_state_list_fromzips&cache_key=DEF87BE4",
+        "displayedObservations" : 933,
+        "environment" : "",
+        "object" : "vignarajah_state_list_fromzips",
+        "preview" : 0,
+        "totalObservations" : 933,
+        "variables" : 19
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

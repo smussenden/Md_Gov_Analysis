@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1522689313185.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "F4009D0A",
+    "lastKnownWriteTime" : 0,
+    "last_content_update" : 1522689313185,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "D54A339F",
+        "caption" : "vignarajah_contribs_sunmmed_arranged",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=vignarajah_contribs_sunmmed_arranged&cache_key=D54A339F",
+        "displayedObservations" : 816,
+        "environment" : "",
+        "object" : "vignarajah_contribs_sunmmed_arranged",
+        "preview" : 0,
+        "totalObservations" : 816,
+        "variables" : 2
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

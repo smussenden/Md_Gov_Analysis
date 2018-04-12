@@ -1,4 +1,3 @@
-library(dplyr)
 library(tidyverse)
 library(stringi)
 library(zipcode)
@@ -12,6 +11,50 @@ glimpse(cleaned_contributions_new)
 summary(cleaned_contributions_new)
 
 #############TIME FOR ANALYSIS##############
+
+#before we break it up by candidate, let's see where the money is coming from to all candidates within the state of Maryland.
+
+#let's start exploring where in the world this money is coming from...We can do that by extracting zip codes. 
+#searches for all number combos that are either 5 digits long or 5 digits followed by 4 digits with a dash in between.
+contributions_all_zips1 <- stri_extract_all_regex(cleaned_contributions_new$`Contributor Address`, "(?<!\\d)(\\d{5}(?:[-\\s]\\d{4})?)\\b")
+contributions_all_5digitzips <- stri_extract_all_regex(contributions_all_zips1, "\\d{5}")
+#I was getting some extra 5 digit combos from addresses, so I used this lapply command to just grab the last one, since the zip is always last. 
+contributions_all_zips2 <- map(contributions_all_5digitzips, function(x) x[length(x)])
+#creates the dataframe hogan_c as new hogan_c
+contributions_all_zipz_df <- data_frame(contributions_all_zips2)
+#changes the list to a numeric value. This helps the group by function which do4sn't like lists.
+contributions_all_zipz_df %>% mutate_if(is.list, as.character) -> contributions_all_zipz_df
+#changes the column header in the new dataframe to zip_codes. this will be helpful later on because it is unique. 
+colnames(contributions_all_zipz_df)[which(names(contributions_all_zipz_df) == "contributions_all_zips2")] <- "zip_codes"
+#binds it to the hogan contributions database
+newall_contribswithzips <- cbind(contributions_all_zipz_df, cleaned_contributions_new)
+
+
+#ok, so now that we have our new list with the added zip codes, we can go through and group them and count them. 
+
+
+
+
+##########################4##########################
+
+#now let's combine with the zip codfes database so we can group by state and county 
+
+#pulls the database of zip codes/state information 
+data(zipcode)
+View(zipcode) 
+#creates a merged list of zip codes and the hogan information. 
+allcontribs_state_list_fromzips <-  left_join(newall_contribswithzips, zipcode, by =c("zip_codes" = "zip"))
+
+
+
+## so now that we've got the two tables merged, It's time to sort out the Maryland contributors. 
+
+all_contribs_from_maryland <- allcontribs_state_list_fromzips %>% 
+  filter(state == "MD")
+
+
+
+
 ################# HOGAN! ############
 
 
@@ -90,6 +133,73 @@ count_hogan_states <- hogan_state_list_fromzips %>%
   arrange(desc(total)) 
 View(count_hogan_states)
 count_hogan_states[1:10,]
+
+
+###########INKIND ANALYSIS HOGAN ############### 
+#I decided to pull out the inkind donations Hogan got, just because it was so many 
+
+
+#let's start exploring where in the world this money is coming from...We can do that by extracting zip codes. 
+#searches for all number combos that are either 5 digits long or 5 digits followed by 4 digits with a dash in between.
+hogan_inkind_zips1 <- stri_extract_all_regex(hogan_inkind_rebates_all$`Contributor Address`, "(?<!\\d)(\\d{5}(?:[-\\s]\\d{4})?)\\b")
+hogan_inkind_5digitzips <- stri_extract_all_regex(hogan_inkind_zips1, "\\d{5}")
+#I was getting some extra 5 digit combos from addresses, so I used this lapply command to just grab the last one, since the zip is always last. 
+hogan_inkind_zips2 <- map(hogan_inkind_5digitzips, function(x) x[length(x)])
+#creates the dataframe hogan_c as new hogan_c
+hogan_inkind_zips_df <- data_frame(hogan_inkind_zips2)
+#changes the list to a numeric value. This helps the group by function which do4sn't like lists.
+hogan_inkind_zips_df %>% mutate_if(is.list, as.character) -> hogan_inkind_zips_df
+#changes the column header in the new dataframe to zip_codes. this will be helpful later on because it is unique. 
+colnames(hogan_inkind_zips_df)[which(names(hogan_inkind_zips_df) == "hogan_inkind_zips2")] <- "zip_codes"
+#binds it to the hogan contributions database
+newhogan_inkind_contribswithzips <- cbind(hogan_inkind_zips_df, hogan_inkind_rebates_all)
+#ok, so now that we have our new list with the added zip codes, we can go through and group them and count them. 
+count_hogan_inkind_zip_codes <- newhogan_inkind_contribswithzips %>% 
+  #the colum we are grouping 
+  group_by(zip_codes)  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`,  na.rm = TRUE)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(count_hogan_inkind_zip_codes)
+count_hogan_inkind_zip_codes[1:10,]
+
+##########################4##########################
+
+#now let's group by state and see where this money is coming from by joining this data with a helpful database of zip codes that is part of the zipcode library.....which you should install, or you're not going anywhere pat'na. PS: zipcode also has a cleaning feature, but it didn't work for my purposes. Thus the code above. 
+
+#pulls the database of zip codes/state information 
+data(zipcode)
+View(zipcode) 
+#creates a merged list of zip codes and the hogan information. 
+hogan_state_inkind_list_fromzips <-  left_join(newhogan_inkind_contribswithzips, zipcode, by =c("zip_codes" = "zip"))
+
+#just a quickie to see where this money is coming from and how much. 
+hogan_inkind_count_and_sum <- hogan_state_inkind_list_fromzips %>%
+  group_by(city, `Contributor Name`)  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(hogan_inkind_count_and_sum)
+hogan_inkind_count_and_sum[1:10,]
+  
+
+##########################5###########################
+#so let's count it up and see what we got. I'm grouping by city and state, but that can be changed, if needed. 
+
+count_hogan_states <- hogan_state_list_fromzips %>% 
+  #the colum we are grouping 
+  group_by(state, city)  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`,  na.rm = TRUE)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(count_hogan_states)
+count_hogan_states[1:10,]
+
+##################################
+
 
 
 #So  looks like Baltimore and Annapolis are top.
@@ -192,12 +302,11 @@ hogan_contribs_sunmmed_arranged<- hogan_contribs_all %>%
 View(hogan_contribs_sunmmed_arranged)
 hogan_contribs_sunmmed_arranged[1:10,]
 #AHA, in addition to the Republican Party being a huge contributor, BB&T and Wells Fargo, Kinsley Anne W. 12000.00, Gioioso Wayne R. 9500.00
-#1 Republican State Central Committee Of Maryland 588056.51
-#2                                    Wells Fargo  18152.12
-#3                                           BB&T  16769.68
-#4                               Kinsley  Anne W.  12000.00
-#5                              Gioioso  Wayne R.   9500.00
-
+#1                              Wells Fargo 18152.12
+#2                                     BB&T 16769.68
+#3                         Kinsley  Anne W. 12000.00
+#4                        Gioioso  Wayne R.  9500.00
+#5                          Gardyn  Simpson  7500.00
 ################################10#########################
 
 #OK, finally, let's look at the contribution amounts grouped by contribution type.
@@ -222,6 +331,32 @@ hogan_contribution_type[1:10,]
 #7              Political Club     2    2085.00
 
 
+#################11##############
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+count_hogan_smallcontribs <- hogan_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_hogan_smallcontribs[1:2]
+
+count_hogan_bigcontribs <- hogan_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_hogan_bigcontribs[1:2]
+
+
+
+
+
 #############TIME FOR ANALYSIS##############
 ################# baker! ############
 
@@ -234,23 +369,28 @@ baker_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling baker. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Baker  Rushern III Friends Of-Comm For Pol Change (CPC)") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(baker_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 baker_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling baker. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Baker  Rushern III Friends Of-Comm For Pol Change (CPC)") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" | `Contribution Type` == "Coordinated In-Kind")
 View(baker_inkind_rebates_all)
 
 
 ##############################2####################
 
-# So as a safeguard, let's look at baker's contributions and see if they match up with the Baltimore Sun's numbers.....not for antything but they seem like a competent grtoup of journalists. 
+# So as a safeguard, let's look at baker's contributions a
 sum(baker_contribs_all$`Contribution Amount`)
-#1053796 is what I got....and the Sun listed the total as 1,050,000. Not bad. 
+#1053796 is what I got....and the campaign reported $1,053,796.28. Not bad.  
 sum(baker_inkind_rebates_all$`Contribution Amount`)
 #20614.87
+
+#what's weird, is that baker didn't get a lot of large contribs, nor did he get a lot of small contribs. What's the average contribution amount?
+
+mean(baker_contribs_all$`Contribution Amount`)
 #########################3#################
 
 #let's start exploring where in the world this money is coming from...We can do that by extracting zip codes. 
@@ -311,12 +451,19 @@ View(count_baker_states)
 count_baker_states[1:10,]
 
 
+
+
+
 #So  looks like DC is top of the heap......Bowie and Potomac are a distant second
 #1    DC     Washington   237 200322.14
 #2    MD          Bowie   196  81142.00
 #3    MD        Potomac    40  64770.00
 #4    MD Upper Marlboro   149  40971.18
 #5    MD    Hyattsville   120  35309.41
+
+ 81142.00  +  40971.18 +  35309.41
+
+
 
 #######################5a##################
 #because there's so muhc money from DC let's back up and just sort by states. That way we can see what's what as far as totals go. 
@@ -443,6 +590,35 @@ baker_contribution_type[1:10,]
 #6                               Federal Committee     2   4000.0
 
 
+baker_pg_County  <- baker_contribs_all %>%
+#the colum we are grouping 
+filter(`Employer Name` == "Prince George's County") 
+View(baker_pg_County)
+
+#################11##############
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+count_baker_smallcontribs <- baker_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_baker_smallcontribs[1:2]
+
+count_baker_bigcontribs <- baker_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_baker_bigcontribs[1:2]
+
+
+
 ################# jealous! ############
 
 
@@ -454,13 +630,14 @@ jealous_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling jealous. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Jealous  Ben Friends of") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(jealous_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 jealous_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling jealous. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Jealous  Ben Friends of") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" | `Contribution Type` == "Coordinated In-Kind")
 View(jealous_inkind_rebates_all)
 
 
@@ -470,7 +647,7 @@ View(jealous_inkind_rebates_all)
 sum(jealous_contribs_all$`Contribution Amount`)
 #1249316 is what I got....and the Sun listed the total as 1,500,000. but the original disclosure says 1,250,229.46 And I summed both the in kind and conrribution amount and got 1265546
 sum(jealous_inkind_rebates_all$`Contribution Amount`)
-#20614.87
+#16229.5
 #########################3#################
 
 #let's start exploring where in the world this money is coming from...We can do that by extracting zip codes. 
@@ -658,6 +835,30 @@ jealous_contribution_type[1:10,]
 #5 Unregistered Out-of-State Non-Federal Committee     1    6000
   
  #wow almost all came from individual donations.  
+
+#################11##############
+
+count_jealous_smallcontribs <- jealous_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(count_jealous_smallcontribs)
+count_jealous_smallcontribs[1:2]
+
+count_jealous_bigcontribs <- jealous_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(count_jealous_bigcontribs)
+count_jealous_bigcontribs[1:2]
+
+
   
   
 ################# shea! ############
@@ -671,13 +872,14 @@ shea_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling shea. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Jim Shea For Maryland") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(shea_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 shea_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling shea. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Jim Shea For Maryland") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" | `Contribution Type` == "Coordinated In-Kind")
 View(shea_inkind_rebates_all)
 
 
@@ -687,7 +889,7 @@ View(shea_inkind_rebates_all)
 sum(shea_contribs_all$`Contribution Amount`)
 #2017775 is what I got....and the disclosure states $2,016,524.73  So I subtracted the ( Federal Committees $1,250.00) and got 2016525. 
 sum(shea_inkind_rebates_all$`Contribution Amount`)
-#20614.87
+#54814.21
 #########################3#################
 
 #let's start exploring where in the world this money is coming from...We can do that by extracting zip codes. 
@@ -788,6 +990,24 @@ count_shea_states_jobs[1:3]
 
 #Lots of this Venable firm popping up all over the place. LEt's sort it out in more depth. 
 
+count_shea_smallcontribs <- shea_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+View(count_shea_smallcontribs)
+count_shea_smallcontribs[1:2]
+
+count_shea_bigcontribs <- shea_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_shea_bigcontribs[1:2]
 
 ###############7#################
 
@@ -873,6 +1093,27 @@ shea_contribution_type[1:10,]
 #4           Federal Committee     2    1250.00
 
 
+#################11##############
+
+count_shea_smallcontribs <- shea_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_shea_smallcontribs[1:2]
+
+count_shea_bigcontribs <- shea_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_shea_bigcontribs[1:2]
+
+
 
 ################# kamenetz! ############
 
@@ -885,19 +1126,20 @@ kamenetz_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling kamenetz. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Kamenetz  (Kevin) Committee For") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(kamenetz_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 kamenetz_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling kamenetz. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Kamenetz  (Kevin) Committee For") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" |  `Contribution Type` == "Coordinated In-Kind")
 View(kamenetz_inkind_rebates_all)
 
 
 ##############################2####################
 
-# So as a safeguard, let's look at kamenetz's contributions and see if they match up with the Baltimore Sun's numbers.....not for antything but they seem like a competent grtoup of journalists. 
+# So as a safeguard, let's look at kamenetz's contributions and see if they match up with the Baltimore Sun's numbers and the campaign's disclosure.
 sum(kamenetz_contribs_all$`Contribution Amount`)
 #1041282 is what I got....The campaign said it collected 1066700.13 and got  10752.45  in in-kind for a totl of  $1,055,948
 sum(kamenetz_inkind_rebates_all$`Contribution Amount`)
@@ -1083,7 +1325,36 @@ kamenetz_contribution_type[1:10,]
 #6                               Federal Committee     1   1000.0
 #7 Unregistered Out-of-State Non-Federal Committee     1   1000.0
 
+
+
+#################11##############
+
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+
+count_kamenetz_smallcontribs <- kamenetz_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_kamenetz_smallcontribs[1:2]
+
+count_kamenetz_bigcontribs <- kamenetz_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_kamenetz_bigcontribs[1:2]
+
+
+
 ################# madaleno! ############
+
 
 
 ###############1################# 
@@ -1094,13 +1365,14 @@ madaleno_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling madaleno. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Madaleno  Richard Marylanders For") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(madaleno_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 madaleno_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling madaleno. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Madaleno  Richard Marylanders For") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" |  `Contribution Type` == "Coordinated In-Kind")
 View(madaleno_inkind_rebates_all)
 
 
@@ -1292,6 +1564,29 @@ madaleno_contribution_type[1:10,]
 #5                           Candidate Committee     4   3750
 
 
+#################11##############
+
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+
+count_madaleno_smallcontribs <- madaleno_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_madaleno_smallcontribs[1:2]
+
+count_madaleno_bigcontribs <- madaleno_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_madaleno_bigcontribs[1:2]
 
 ################# ross! ############
 
@@ -1304,13 +1599,14 @@ ross_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling ross. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Ross  Alec for Maryland") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(ross_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 ross_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling ross. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Ross  Alec for Maryland") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" |  `Contribution Type` == "Coordinated In-Kind")
 View(ross_inkind_rebates_all)
 
 
@@ -1499,6 +1795,29 @@ ross_contribution_type[1:10,]
 #4                                   PAC Committee     2    3000.00
 #5                                Self (Candidate)     1    2000.00
 
+#################11##############
+
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+
+count_ross_smallcontribs <- ross_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_ross_smallcontribs[1:2]
+
+count_ross_bigcontribs <- ross_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_ross_bigcontribs[1:2]
 
 ################# vignarajah! ############
 
@@ -1511,13 +1830,14 @@ vignarajah_contribs_all <- cleaned_contributions_new  %>%
   #here we're creating a dataframe of all entries that have the receiving committee equaling vignarajah. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Vignarajah  Krish for Maryland") %>%
   filter(`Contribution Type` != "In-Kind") %>%
+  filter(`Contribution Type` != "Coordinated In-Kind") %>%
   filter(`Contribution Type` != "Refund/Rebate")
 View(vignarajah_contribs_all)
 #this also creates the a dataframe of rebartes and inkind donations that I pulled out of the contributions list. Just to see if I see something interesting.
 vignarajah_inkind_rebates_all <- cleaned_contributions_new  %>% 
   #here we're creating a dataframe of all entries that have the receiving committee equaling vignarajah. And it excludes in-kind and refund/rebate information
   filter(`Receiving Committee` == "Vignarajah  Krish for Maryland") %>%
-  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate")
+  filter(`Contribution Type` == "In-Kind" | `Contribution Type` == "Refund/Rebate" |  `Contribution Type` == "Coordinated In-Kind")
 View(vignarajah_inkind_rebates_all)
 
 
@@ -1686,7 +2006,7 @@ vignarajah_contribsby_occupation[1:10,]
 #Hey big spender, let's look at all the contributions ordered by amount....
 
 vignarajah_contribs_sunmmed_arranged<- vignarajah_contribs_all %>%
-  group_by(`Contributor Name`) %>%
+  group_by(`Contributor Name` ) %>%
   #sums the values from the contribution amount column and places it into the group by we requested above. 
   summarise(total = sum(`Contribution Amount`)) %>%
   #arrange the list in descending order
@@ -1701,3 +2021,52 @@ vignarajah_contribs_sunmmed_arranged[1:10,]
 #3      Blaustein  Susan 6e+03
 #4        Boone  Cecilia 6e+03
 #5         Harmon  James 6e+03
+
+#################11##############
+
+
+#I'd also like to look at big contributions versus big contributions. I will do that with these two functions. Small contribs, for contrinbutions less than 250 and big contributions more than 2500.
+
+
+count_vignarajah_smallcontribs <- vignarajah_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` < 250 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_vignarajah_smallcontribs[1:2]
+
+count_vignarajah_bigcontribs <- vignarajah_state_list_fromzips %>% 
+  #the colum we are grouping 
+  filter(`Contribution Amount` > 2500 )  %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n(), total = sum(`Contribution Amount`)) %>%
+  #arrange the list in descending order
+  arrange(desc(total)) 
+count_vignarajah_bigcontribs[1:2]
+
+#what's weird, is that baker didn't get a lot of large contribs, nor did he get a lot of small contribs. What's the average contribution amount?
+
+mean(baker_contribs_all$`Contribution Amount`)
+#########################3#################
+
+#below I've just done al the means ot see them in one place. 
+mean(baker_contribs_all$`Contribution Amount`)
+mean(shea_contribs_all$`Contribution Amount`)
+mean(vignarajah_contribs_all$`Contribution Amount`)
+mean(kamenetz_contribs_all$`Contribution Amount`)
+mean(madaleno_contribs_all$`Contribution Amount`)
+mean(ross_contribs_all$`Contribution Amount`)
+mean(jealous_contribs_all$`Contribution Amount`)
+
+
+#looks at the unique conrributors to the campaign
+count_ross_contribs <- ross_state_list_fromzips %>% 
+  #the colum we are grouping 
+  distinct(`Contributor Name` ) %>%
+  #creates a count with the row name being count. The n value is the number of times it occurs
+  summarise(count = n()) %>%
+  #arrange the list in descending order
+  arrange(desc(count)) 
+count_ross_contribs[1:10,]
