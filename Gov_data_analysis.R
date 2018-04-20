@@ -45,7 +45,7 @@ View(zipcode)
 #creates a merged list of zip codes and the hogan information. 
 allcontribs_state_list_fromzips <-  left_join(newall_contribswithzips, zipcode, by =c("zip_codes" = "zip"))
 
-
+write_csv(allcontribs_state_list_fromzips, "allcontributionswithzips.csv")
 
 ## so now that we've got the two tables merged, It's time to sort out the Maryland contributors. 
 
